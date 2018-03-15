@@ -1,0 +1,15 @@
+---
+
+- name: Delete failed kubernetes-dashboard deployment
+  shell: kubectl delete deployment kubernetes-dashboard --namespace=kube-system
+  register: del_dash_deployment
+  ignore_errors: false
+
+- name: Remove remaining kubernetes-dashboard components
+  command: kubectl delete "{{item}}" kubernetes-dashboard --namespace=kube-system
+  with_items:
+    - Service
+    - clusterrolebindings
+    - ServiceAccount
+  when: del_dash_deployment | succeeded
+  ignore_errors: true

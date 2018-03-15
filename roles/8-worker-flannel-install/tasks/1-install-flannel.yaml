@@ -1,0 +1,50 @@
+---
+
+- name: Check if flanneld package already installed
+  stat:
+    path: /usr/bin/flanneld
+  register: flanneld_file
+
+- name: Install flannel package
+  get_url:
+    url: "{{flanneld_pkg}}"
+    dest: /usr/bin/flanneld
+    mode: 0755
+  ignore_errors: false
+  when: flanneld_file.stat.path is not defined
+
+- name: copy required certificates used to communicate to etcd by flanneld
+  copy:
+    src: /var/tmp/k8s-v1.7-certs/{{item}}
+    dest: /var/lib/kubernetes/
+  with_items:
+    - ca.pem
+    - kubernetes.pem
+    - kubernetes-key.pem
+  ignore_errors: false
+
+- name: Copy flanneld service template to all worker nodes
+  template:
+    src: flanneld-service.j2
+    dest: /etc/systemd/system/flanneld.service
+    mode: 0644
+    backup: yes
+  ignore_errors: false
+
+- name: Reload systemd daemon
+  command: systemctl daemon-reload
+
+- name: Start and enable flanneld service
+  service:
+    name: flanneld
+    state: started
+    enabled: yes
+  ignore_errors: false
+
+- name: check flanneld status
+  shell: systemctl status flanneld --no-pager
+  register: flanneld_status
+  ignore_errors: false
+
+- debug:
+    var: flanneld_status.stdout

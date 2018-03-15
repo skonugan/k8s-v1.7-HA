@@ -1,0 +1,18 @@
+---
+
+- name: Check if kube-apiserver package already installed
+  stat:
+    path: /usr/local/bin/kube-apiserver
+  register: kubeapi_file
+
+- name: Download offcial kubernetes binaries in /usr/local/bin/
+  get_url:
+    url: "{{item}}"
+    dest: /usr/local/bin/
+    mode: 0755
+  with_items:
+    - "{{k8s_api_pkg}}"
+    - "{{k8s_ctrlmgr_pkg}}"
+    - "{{k8s_scdl_pkg}}"
+    - "{{k8s_ctl_pkg}}"
+  when: kubeapi_file.stat.path is not defined

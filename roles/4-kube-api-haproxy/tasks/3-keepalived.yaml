@@ -1,0 +1,114 @@
+---
+
+- name: Get loadbalancer servers interface name
+  shell: ip a|grep -i -B2 {{ansible_ssh_host}}|awk 'FNR==1 {print $2}'|cut -d':' -f1
+  register: lb_eth_name
+  ignore_errors: false
+
+- name: Get VIP network prifix
+  shell: ip a|grep -i -B2 {{ansible_ssh_host}}|awk 'FNR==3 {print $2}'|cut -d'/' -f2
+  register: lb_vip_prifix
+  ignore_errors: false
+
+- name: Verify that keepalived directory exists
+  stat:
+    path: /etc/keepalived/
+  register: keepalived_path
+  ignore_errors: false
+
+- name: Create keepalived directory
+  file:
+    path: /etc/keepalived
+    state: directory
+    owner: root
+    group: root
+    mode: 0744
+  when: keepalived_path.stat.path is not defined
+
+- name: Check of keepalived log file already presented
+  stat:
+    path: /var/log/keepalived-notifications.log
+  register: k_log_file
+  ignore_errors: false
+
+- name: Create keepalived log file.
+  file:
+    path: /var/log/keepalived-notifications.log
+    state: touch
+    owner: root
+    group: root
+    mode: 0640
+  when: k_log_file.stat.path is not defined
+  ignore_errors: false
+
+- name: Copy keepalived scripts to /etc/keepalived
+  template:
+    src: "{{item}}"
+    dest: /etc/keepalived/
+    mode: 0755
+    backup: yes
+  with_items:
+    - vip.sh
+    - haproxy.sh
+    - haproxy_service.sh
+  register: k_scripts
+  ignore_errors: false
+
+- name: Copy keepalived template to master servers
+  template:
+    src: keepalived.j2
+    dest: /etc/keepalived/keepalived.conf
+    mode: 0644
+    backup: yes
+  ignore_errors: false
+  register: k_conf_file
+
+- name: check if keepalived already running
+  stat:
+    path: /run/keepalived.pid
+  register: k_pid
+  ignore_errors: true
+
+- name: Start keepalived service
+  service:
+    name: keepalived
+    state: started
+    enabled: yes
+  retries: 3
+  delay: 10
+  ignore_errors: false
+  when: k_pid.stat.path is not defined
+
+- name: Restart keepalived after conf changes
+  service:
+    name: keepalived
+    state: restarted
+  retries: 3
+  delay: 10
+  ignore_errors: false
+  when:
+    - k_conf_file | changed
+    - k_pid.stat.path is defined
+
+- name: check keepalived service status
+  shell: systemctl status keepalived.service --no-pager
+  register: keepalived_svc
+- debug:
+    var: keepalived_svc.stdout
+
+- name: Keepalived getting initialized
+  wait_for: timeout=10
+
+- name: check VIP validation
+  shell: ip a|grep -i {{k8s_lb_vip}}|awk 'FNR==1 {print $2}'|cut -d'/' -f1
+  register: vip_status
+
+- debug:
+    msg: "VIP {{k8s_lb_vip}} came up in host {{ansible_nodename}}."
+  when: vip_status.stdout == k8s_lb_vip
+  ignore_errors: false
+
+- fail:
+    msg: "Whoops! VIP {{k8s_lb_vip}} failed to came up."
+  when: vip_status.stdout is undefined
+  ignore_errors: false

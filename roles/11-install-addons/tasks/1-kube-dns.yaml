@@ -1,0 +1,104 @@
+---
+
+- name: Check if kube-dns pod already presented
+  shell: kubectl get pods --namespace=kube-system |grep -i kube-dns |egrep -i "running|CrashLoopBackOff|Error|pending|terminating|creating"
+  register: kdns_pod_status
+  ignore_errors: true
+- debug:
+    msg: "Kube-dns podes already presented. kube-dns pod installation will be skipped!"
+  when: kdns_pod_status | succeeded
+
+- name: Check if kube-dns ServiceAccount already available
+  shell: kubectl get ServiceAccount -n kube-system | grep -i kube-dns
+  register: kdns_svcacc
+  ignore_errors: true
+- debug:
+    msg: "Kube-dns ServiceAccount already available. kube-dns pod installation will be skipped!"
+  when: kdns_svcacc | succeeded
+
+- debug:
+    msg: "Did not find any existing kube-dns pod. kube-dns pods will be created!"
+  when: ( kdns_pod_status | failed ) and
+        ( kdns_svcacc | failed)
+  ignore_errors: true
+
+- name: Copy kube-dns template to k8s client machine
+  template:
+    src: kube-dns.j2
+    dest: /tmp/kube-dns.yaml
+    mode: 0644
+  register: copy_dns_template
+  when: ( kdns_pod_status | failed ) and
+        ( kdns_svcacc | failed)
+  ignore_errors: false
+
+- name: Create kube-dns deployment
+  command: kubectl create -f /tmp/kube-dns.yaml
+  retries: 3
+  delay: 10
+  register: create_dns
+  when: ( kdns_pod_status | failed ) and
+        ( kdns_svcacc | failed)
+  ignore_errors: false
+
+- name: kube-dns pods getting created
+  wait_for: timeout=20
+  delegate_to: localhost
+  when: ( kdns_pod_status | failed ) and
+        ( kdns_svcacc | failed)
+  ignore_errors: false
+
+- name: Delete copied template
+  file:
+    path: /tmp/kube-dns.yaml
+    state: absent
+  when: ( kdns_pod_status | failed ) and
+        ( kdns_svcacc | failed)
+
+- name: New deployed kube-dns status
+  shell: kubectl get pods -l k8s-app=kube-dns -n kube-system -o wide
+  register: new_kubedns_deployment
+  when: kdns_pod_status | failed
+- debug:
+    var: new_kubedns_deployment.stdout
+  when: kdns_pod_status | failed
+
+- name: Existing kube-dns deployment status
+  shell: kubectl get pods -l k8s-app=kube-dns -n kube-system -o wide|grep -i kube-dns|awk '{print $1 " state is "$3 ", and running on "$7}'
+  register: exising_kubedns_deployment
+  when: kdns_pod_status | succeeded
+- debug:
+    var: exising_kubedns_deployment.stdout
+  when: kdns_pod_status | succeeded
+
+- name: Check failed kube-dns pods
+  shell: kubectl get pods --namespace=kube-system |grep -i kube-dns |egrep  "CrashLoopBackOff|Error"
+  register: failed_kubedns_pod
+  ignore_errors: true
+
+- fail:
+    msg: "Found kube-dns pods in failed state! Kube-dns failed pods will be deleted"
+  register: dns_pod_fail_true
+  when: failed_kubedns_pod | succeeded
+  ignore_errors: true
+
+- include: 2-delete-kubedns.yaml
+  when: dns_pod_fail_true | failed
+  ignore_errors: true
+
+- name: Check if kube-dns pod is in running state
+  shell: kubectl get pods -n kube-system |grep -i kube-dns |egrep -i "running"
+  retries: 3
+  delay: 10
+  register: kdns_pod_running_state
+  ignore_errors: true
+
+- fail:
+    msg: "kube-dns pods are not in running state or not found. DNS verification will be skipped!"
+  register: no_dns_running
+  when: kdns_pod_running_state | failed
+  ignore_errors: true
+
+#- include: 3-dns-verification.yaml
+#  when: no_dns_running | succeeded
+#  ignore_errors: true

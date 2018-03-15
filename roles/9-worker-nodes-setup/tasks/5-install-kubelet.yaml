@@ -1,0 +1,41 @@
+---
+
+#Note: To fix kubectl exec..container login issue
+#https://github.com/kelseyhightower/kubernetes-the-hard-way/issues/146
+# known issue is open for kubelet
+# https://github.com/kubernetes-incubator/cri-o/issues/790
+
+#- name: Get API_SERVERS url
+#  shell: cat /var/tmp/k8s-v1.7-certs/bootstrap.kubeconfig| grep server | cut -d ':' -f2,3,4 | tr -d '[:space:]'
+#  delegate_to: localhost
+#  register: api_server
+
+#- debug:
+#    var: api_server.stdout
+#  delegate_to: localhost
+
+- name: Copy kubelet service template to all worker nodes
+  template:
+    src: kubelet-service.j2
+    dest: /etc/systemd/system/kubelet.service
+    mode: 0644
+    backup: yes
+  ignore_errors: false
+
+- name: Reload systemd daemon
+  command: systemctl daemon-reload
+
+- name: Start and enable kubelet service
+  service:
+    name: kubelet
+    state: started
+    enabled: yes
+  ignore_errors: false
+
+- name: check kubelet service status
+  shell: ps -ef |grep -i kubelet |awk 'FNR==1 {print $8 "\t" $9}'
+  register: kubelet_status
+  ignore_errors: false
+
+- debug:
+    var: kubelet_status.stdout

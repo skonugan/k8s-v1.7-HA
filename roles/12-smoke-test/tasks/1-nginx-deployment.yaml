@@ -1,0 +1,18 @@
+---
+
+- name: Deploy nginx
+  shell: kubectl run nginx --image=nginx
+  register: deploy_nginx
+
+- name: NGINX pods getting created
+  wait_for: timeout=10
+  delegate_to: localhost
+
+- name: List nginx pods
+  shell: kubectl get pods -l run=nginx -o jsonpath="{.items[0].metadata.name}"
+  register: nginx_pod
+  when: deploy_nginx | succeeded
+- debug:
+    msg: " NGINX pod {{nginx_pod.stdout}} got created!"
+  when: nginx_pod | succeeded
+

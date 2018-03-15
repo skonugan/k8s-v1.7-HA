@@ -1,0 +1,129 @@
+---
+
+#==================== CNI=====================
+- name: Check if CNI already installed
+  stat:
+    path: /opt/cni/bin/bridge
+  register: cni_file
+
+- name: Install CNI package
+  unarchive:
+    src: "{{cni_pkg}}"
+    dest: /opt/cni/bin/
+    remote_src: True
+  when: cni_file.stat.path is not defined
+  ignore_errors: false
+
+#======================== CRIO and RUNC ===========
+
+- name: Get libgpgme CRIO lib status
+  stat:
+    path: /usr/lib/x86_64-linux-gnu/libgpgme.so.11
+  register: crio_lib_file
+
+- name: Install crio dependancies
+  command: "{{item}}"
+  with_items:
+    - add-apt-repository -y ppa:alexlarsson/flatpak
+    - apt-get update
+    - apt-get install -y socat libgpgme11 libostree-1-1
+  when: crio_lib_file.stat.path is not defined
+
+- name: Check if CRIO already installed
+  stat:
+    path: /usr/local/bin/crio
+  register: crio_file
+
+- name: Install CRIO package
+  unarchive:
+    src: "{{crio_pkg}}"
+    dest: /var/tmp/
+    remote_src: True
+  when: crio_file.stat.path is not defined
+  ignore_errors: false
+
+- name: Move crio binaries to /usr/local/bin/
+  shell: cd /var/tmp/; mv crio crioctl kpod  /usr/local/bin/
+  register: crio_binary
+  when: crio_file.stat.path is not defined
+
+- name: Move additional crio binaries to /usr/local/libexec/crio/
+  shell: cd /var/tmp/; mv conmon pause  /usr/local/libexec/crio/
+  when: crio_file.stat.path is not defined
+
+- fail:
+    msg: "Whoops! crio binary did not find."
+  when: crio_binary|failed
+  ignore_errors: false
+
+#========================== RUNC======================
+- name: Check if runc already installed
+  stat:
+    path: /usr/local/bin/runc
+  register: runc_file
+  ignore_errors: false
+
+- name: Download runc binary
+  get_url:
+    url: "{{runc_pkg}}"
+    dest: /usr/local/bin/runc
+    mode: 0755
+  when: runc_file.stat.path is not defined
+  ignore_errors: false
+
+
+#================== Docker ====================
+- name: Check if docker already installed
+  stat:
+    path: /usr/local/bin/docker
+  register: docker_file
+
+- name: Install docker package
+  unarchive:
+    src: "{{docker_pkg}}"
+    dest: /tmp/
+    remote_src: True
+  when: docker_file.stat.path is not defined
+  register: download_docker
+  ignore_errors: false
+
+- name: Copy docker binaries to /usr/bin
+  shell: mv /tmp/docker/docker* /usr/local/bin/
+  when: docker_file.stat.path is not defined
+  ignore_errors: false
+
+- name: Clean remaining docker files from /tmp
+  file:
+    path: /tmp/docker
+    state: absent
+  when: download_docker|succeeded
+
+#==================================== Kubelet =========
+- name: Check if kubelet already installed
+  stat:
+    path: /usr/local/bin/kubelet
+  register: kubelet_file
+  ignore_errors: false
+
+- name: Download kubelet binary
+  get_url:
+    url: "{{kubelet_pkg}}"
+    dest: /usr/local/bin/
+    mode: 0755
+  when: kubelet_file.stat.path is not defined
+  ignore_errors: false
+
+#==================================== kube-proxy =========
+- name: Check if kube-proxy already installed
+  stat:
+    path: /usr/local/bin/kube-proxy
+  register: kproxy_file
+  ignore_errors: false
+
+- name: Download kube-proxy binary
+  get_url:
+    url: "{{kproxy_pkg}}"
+    dest: /usr/local/bin/
+    mode: 0755
+  when: kproxy_file.stat.path is not defined
+  ignore_errors: false

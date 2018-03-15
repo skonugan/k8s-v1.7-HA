@@ -1,0 +1,15 @@
+---
+
+- name: Delete failed kube-dns deployment
+  shell: kubectl delete deployment kube-dns --namespace=kube-system
+  register: del_dns_deployment
+  ignore_errors: false
+
+- name: Remove remaining kube-dns component
+  command: kubectl delete "{{item}}" kube-dns --namespace=kube-system
+  with_items:
+    - Service
+    - ConfigMap
+    - ServiceAccount
+  when: del_dns_deployment | succeeded
+  ignore_errors: true

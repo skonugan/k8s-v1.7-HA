@@ -1,0 +1,27 @@
+---
+
+- name: Copy kube-proxy service template to all worker nodes
+  template:
+    src: kube-proxy-service.j2
+    dest: /etc/systemd/system/kube-proxy.service
+    mode: 0644
+    backup: yes
+  ignore_errors: false
+
+
+- name: Reload systemd daemon
+  command: systemctl daemon-reload
+
+- name: Start and enable kube-proxy service
+  service:
+    name: kube-proxy
+    state: started
+    enabled: yes
+  ignore_errors: false
+
+- name: check kube-proxy service status
+  shell: ps -ef |grep -i kube-proxy |awk 'FNR==1 {print $2"\t"$8}'
+  register: kubeproxy_status
+
+- debug:
+    var: kubeproxy_status.stdout

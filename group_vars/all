@@ -1,0 +1,65 @@
+---
+# Define load balancer DNS name or IP address in KUBERNETES_PUBLIC_ADDRESS variable
+
+
+k8s_master1_ip: 192.168.2.151
+k8s_master2_ip: 192.168.2.152
+k8s_master3_ip: 192.168.2.153
+k8s_master1_hostname: k8s-master1
+k8s_master2_hostname: k8s-master2
+k8s_master3_hostname: k8s-master3
+
+k8s_node1_ip: 192.168.2.161
+k8s_node2_ip: 192.168.2.162
+k8s_node1_hostname: k8s-node1
+k8s_node2_hostname: k8s-node2
+
+k8s_lb01_ip: 192.168.2.156
+k8s_lb02_ip: 192.168.2.157
+k8s_lb01_hostname: k8s-lb01
+k8s_lb02_hostname: k8s-lb02
+k8s_lb_vip: 192.168.2.155
+
+k8s_client_ip: 192.168.2.160
+k8s_client_hostname: k8s-client
+
+dns_server: 192.168.2.1
+
+# Packages
+
+cfssl_linux: https://pkg.cfssl.org/R1.2/cfssl_linux-amd64
+cfssljson_linux: https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64
+etcd_pkg: https://github.com/coreos/etcd/releases/download/v3.2.6/etcd-v3.2.6-linux-amd64.tar.gz
+k8s_ctl_pkg: https://storage.googleapis.com/kubernetes-release/release/v1.7.4/bin/linux/amd64/kubectl
+k8s_api_pkg: https://storage.googleapis.com/kubernetes-release/release/v1.7.4/bin/linux/amd64/kube-apiserver
+k8s_ctrlmgr_pkg: https://storage.googleapis.com/kubernetes-release/release/v1.7.4/bin/linux/amd64/kube-controller-manager
+k8s_scdl_pkg: https://storage.googleapis.com/kubernetes-release/release/v1.7.4/bin/linux/amd64/kube-scheduler
+
+flanneld_pkg: https://github.com/coreos/flannel/releases/download/v0.8.0/flanneld-amd64
+cni_pkg: https://github.com/containernetworking/plugins/releases/download/v0.6.0/cni-plugins-amd64-v0.6.0.tgz
+crio_pkg: https://storage.googleapis.com/kubernetes-the-hard-way/crio-amd64-v1.0.0-beta.0.tar.gz
+docker_pkg: https://get.docker.com/builds/Linux/x86_64/docker-1.13.1.tgz
+runc_pkg: https://github.com/opencontainers/runc/releases/download/v1.0.0-rc4/runc.amd64
+
+kubelet_pkg: https://storage.googleapis.com/kubernetes-release/release/v1.7.4/bin/linux/amd64/kubelet
+kproxy_pkg: https://storage.googleapis.com/kubernetes-release/release/v1.7.4/bin/linux/amd64/kube-proxy
+
+kube_dns_yaml: https://storage.googleapis.com/kubernetes-the-hard-way/kube-dns.yaml
+kube_dashboard: https://raw.githubusercontent.com/kubernetes/dashboard/v1.6.3/src/deploy/kubernetes-dashboard.yaml
+# Pod network specific variables
+pod_cidr: 10.0.0.0/8
+pod_net_subnet_len: 24
+pod_net_name: cbr0
+pod_net_type: flannel
+pod_bridge_name: cbr0
+pod_backend_type: vxlan
+KUBERNETES_PUBLIC_ADDRESS: 192.168.2.155
+kube_bind_port: 5443
+k8s_api_port: 6443
+k8s_cluster_name: kubernetes-the-hard-way
+svc_clus_ip_range: 10.32.0.0/24
+svc_node_port_range: 30000-32767
+
+# HAproxy
+vip_name: haproxy-vip
+hapxy_resrc: lb-haproxy
